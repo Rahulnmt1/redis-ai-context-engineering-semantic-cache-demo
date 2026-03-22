@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="vennTitle vennDesc">
+  <title id="vennTitle">Context engineering vs. prompt engineering, RAG, and semantic caching</title>
+  <desc id="vennDesc">
+    Three clearly outlined overlapping circles show prompt engineering, RAG retrieval, and semantic caching.
+    The triple overlap notes that production systems combine techniques. A summary defines context engineering and semantic caching.
+  </desc>
+  <defs>
+    <style>
+      .diagram-title {
+        font: 600 17px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        fill: #0f172a;
+      }
+      .circle-label {
+        font: 600 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        fill: #0f172a;
+      }
+      .circle-desc {
+        font: 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        fill: #1e293b;
+      }
+      .center-text {
+        font: 600 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        fill: #0f172a;
+        text-anchor: middle;
+      }
+      .summary-text {
+        font: 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        fill: #0f172a;
+      }
+      .text-halo {
+        paint-order: stroke fill;
+        stroke: #ffffff;
+        stroke-width: 4px;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+
+  <rect width="800" height="480" fill="#f8fafc"/>
+
+  <text x="400" y="42" text-anchor="middle" class="diagram-title">
+    Context engineering vs. nearby ideas (this demo)
+  </text>
+
+  <!-- Bottom circle first (back), then right, then left (front) for predictable overlap tint -->
+  <circle
+    cx="400"
+    cy="312"
+    r="118"
+    fill="rgba(34, 197, 94, 0.28)"
+    stroke="#15803d"
+    stroke-width="3.5"
+  />
+  <circle
+    cx="508"
+    cy="198"
+    r="118"
+    fill="rgba(59, 130, 246, 0.28)"
+    stroke="#1d4ed8"
+    stroke-width="3.5"
+  />
+  <circle
+    cx="292"
+    cy="198"
+    r="118"
+    fill="rgba(248, 113, 113, 0.28)"
+    stroke="#b91c1c"
+    stroke-width="3.5"
+  />
+
+  <!-- Per-circle labels (mostly in non-overlap lobes) -->
+  <text x="168" y="168" class="circle-label text-halo">Prompt engineering</text>
+  <text x="168" y="188" class="circle-desc text-halo">Wording of system / user</text>
+  <text x="168" y="204" class="circle-desc text-halo">messages and templates</text>
+
+  <text x="556" y="168" class="circle-label text-halo">RAG / retrieval</text>
+  <text x="556" y="188" class="circle-desc text-halo">Fetching handbook</text>
+  <text x="556" y="204" class="circle-desc text-halo">chunks into the packet</text>
+
+  <text x="400" y="318" text-anchor="middle" class="circle-label text-halo">Semantic caching</text>
+  <text x="400" y="336" text-anchor="middle" class="circle-desc text-halo">Redis vector similarity</text>
+  <text x="400" y="352" text-anchor="middle" class="circle-desc text-halo">to reuse prior answers</text>
+
+  <!-- Triple-overlap callout: high-contrast panel -->
+  <rect
+    x="268"
+    y="218"
+    width="264"
+    height="64"
+    rx="14"
+    fill="#ffffff"
+    fill-opacity="0.97"
+    stroke="#64748b"
+    stroke-width="2"
+  />
+  <line x1="278" y1="250" x2="522" y2="250" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="400" y="242" class="center-text">Overlap = real systems</text>
+  <text x="400" y="262" class="center-text" style="font-weight:500;fill:#334155">
+    combine multiple techniques
+  </text>
+
+  <!-- Pairwise intersection hints (placed outside the center callout for readability) -->
+  <text x="400" y="172" text-anchor="middle" class="circle-desc text-halo" style="font-size:10.5px;fill:#475569">
+    PE ∩ RAG
+  </text>
+  <text x="318" y="298" text-anchor="middle" class="circle-desc text-halo" style="font-size:10.5px;fill:#475569">
+    PE ∩ cache
+  </text>
+  <text x="482" y="298" text-anchor="middle" class="circle-desc text-halo" style="font-size:10.5px;fill:#475569">
+    RAG ∩ cache
+  </text>
+
+  <!-- Summary -->
+  <rect x="48" y="374" width="704" height="98" rx="14" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/>
+  <text x="400" y="402" text-anchor="middle" class="summary-text">
+    <tspan font-weight="700">Context engineering</tspan>
+    <tspan> = designing the full briefing packet each turn (rules + retrieval + memory).</tspan>
+  </text>
+  <text x="400" y="424" text-anchor="middle" class="summary-text">
+    <tspan font-weight="700">Semantic caching</tspan>
+    <tspan> = hot-path optimization; same packet builder, different path when safe.</tspan>
+  </text>
+  <text x="400" y="454" text-anchor="middle" class="summary-text" style="font-size:11px;fill:#475569">
+    Context engineering is the end-to-end design of what the model sees; the other circles are techniques it often composes.
+  </text>
+</svg>
