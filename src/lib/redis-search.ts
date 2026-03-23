@@ -127,6 +127,24 @@ export async function dropSearchIndexes(client: RedisClientType): Promise<void> 
   }
 }
 
+/** Human-readable FT.SEARCH the server runs (blob omitted; same shape as `knnSearch`). */
+export function describeKnnSearchCommand(input: {
+  indexName: string;
+  k: number;
+  returnFields: string[];
+}): string {
+  const nRet = input.returnFields.length + 1;
+  const retList = [...input.returnFields, "vector_score"].join(" ");
+  return [
+    `FT.SEARCH ${input.indexName} "*=>[KNN ${input.k} @${VECTOR_FIELD} $q AS vector_score]"`,
+    "PARAMS 2 q <binary Float32 LE buffer: query embedding, DIM " +
+      String(VECTOR_DIM) +
+      ", COSINE metric>",
+    `RETURN ${nRet} ${retList}`,
+    "DIALECT 2",
+  ].join("\n");
+}
+
 export async function knnSearch(
   client: RedisClientType,
   indexName: string,

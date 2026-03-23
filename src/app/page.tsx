@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 type RetrievedChunk = {
   chunkId: string;
   section: string;
   content: string;
   distance: number;
+  redisHashKey: string;
+  vectorQueryExecuted: string;
 };
 
 type ContextPacket = {
@@ -14,6 +16,15 @@ type ContextPacket = {
   sessionMemory: string;
   retrievedChunks: RetrievedChunk[];
   contextBlock: string;
+};
+
+type TurnTokenUsage = {
+  embeddingPromptTokens: number;
+  embeddingTotalTokens: number;
+  llmPromptTokens?: number;
+  llmCompletionTokens?: number;
+  llmTotalTokens?: number;
+  llmTokensSavedVsFreshCall?: number;
 };
 
 type ChatApiResponse = {
@@ -27,10 +38,21 @@ type ChatApiResponse = {
     maxDistance: number;
   };
   llmCalled: boolean;
+  usage: TurnTokenUsage;
   redis: { handbookIndex: string; cacheIndex: string };
 };
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+type TokenTurnRow = {
+  queryLabel: string;
+  embeddingTotalTokens: number;
+  llmTotalTokens: number;
+  chatAvoided: number;
+};
+
+/** Shown until the first `/api/chat` response; keep in sync with server default in `chat-pipeline.ts`. */
+const DEFAULT_SEMANTIC_CACHE_MAX_DISTANCE = 0.27;
 
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -44,6 +66,8 @@ export default function Home() {
   );
   const [llmCalls, setLlmCalls] = useState(0);
   const [cacheHits, setCacheHits] = useState(0);
+  const [tokenTurnRows, setTokenTurnRows] = useState<TokenTurnRow[]>([]);
+  const [lastUsage, setLastUsage] = useState<TurnTokenUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [seedStatus, setSeedStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +92,21 @@ export default function Home() {
       setMessages((m) => [...m, { role: "assistant", content: data.answer }]);
       setLastContext(data.contextPacket);
       setLastCache(data.semanticCache);
+      setLastUsage(data.usage);
+      const u = data.usage;
+      const llmTot = typeof u?.llmTotalTokens === "number" ? u.llmTotalTokens : 0;
+      const saved = u?.llmTokensSavedVsFreshCall;
+      const avoided =
+        typeof saved === "number" && saved > 0 ? saved : 0;
+      setTokenTurnRows((rows) => [
+        ...rows,
+        {
+          queryLabel: `Query ${rows.length + 1}`,
+          embeddingTotalTokens: u?.embeddingTotalTokens ?? 0,
+          llmTotalTokens: llmTot,
+          chatAvoided: avoided,
+        },
+      ]);
       if (data.llmCalled) setLlmCalls((c) => c + 1);
       else setCacheHits((c) => c + 1);
     } catch (e) {
@@ -81,6 +120,26 @@ export default function Home() {
       setLoading(false);
     }
   }, [input, loading, sessionMemory]);
+
+  const cacheMaxDistance =
+    lastCache?.maxDistance ?? DEFAULT_SEMANTIC_CACHE_MAX_DISTANCE;
+
+  const tokenTotals = useMemo(() => {
+    let emb = 0;
+    let llm = 0;
+    let avoided = 0;
+    for (const r of tokenTurnRows) {
+      emb += r.embeddingTotalTokens;
+      llm += r.llmTotalTokens;
+      avoided += r.chatAvoided;
+    }
+    return {
+      embedding: emb,
+      llm,
+      avoided,
+      billed: emb + llm,
+    };
+  }, [tokenTurnRows]);
 
   const seed = useCallback(async (reset: boolean) => {
     setSeedStatus("Seeding…");
@@ -137,15 +196,19 @@ export default function Home() {
           <div className="border-b border-zinc-800 px-4 py-3">
             <h2 className="text-sm font-semibold text-white">Chat</h2>
             <p className="text-xs text-zinc-500">
-              Try a question, then rephrase it to trigger a semantic cache hit.
+              Rephrase with the <span className="text-zinc-300">same topic and keywords</span> (e.g. PTO /
+              full-time). Vague phrases like &quot;annual vacation accrual&quot; usually will not hit;
+              they embed too far apart.
             </p>
           </div>
           <div className="flex flex-1 flex-col gap-3 p-4">
             <div className="min-h-[280px] flex-1 space-y-3 overflow-y-auto rounded-lg border border-zinc-800 bg-black/30 p-3">
               {messages.length === 0 && (
                 <p className="text-sm text-zinc-500">
-                  Ask: &quot;How many PTO days do new hires get?&quot; then: &quot;What is
-                  annual vacation accrual?&quot;
+                  <span className="font-medium text-zinc-400">Cache hit (default threshold):</span> ask
+                  &quot;How many PTO days do full-time employees get per year?&quot; then either
+                  &quot;How many PTO days do new hires get?&quot; or &quot;What is the annual PTO accrual
+                  for full-time employees?&quot;
                 </p>
               )}
               {messages.map((m, i) => (
@@ -256,10 +319,19 @@ export default function Home() {
                         >
                           <div className="mb-1 flex items-center justify-between gap-2 text-zinc-400">
                             <span className="font-medium text-sky-300">{c.section}</span>
-                            <span className="font-mono text-[10px]">
+                            <span className="shrink-0 font-mono text-[10px] text-zinc-500">
                               cos-dist {c.distance.toFixed(4)}
                             </span>
                           </div>
+                          <p className="mb-2 break-all font-mono text-[10px] text-zinc-500">
+                            Redis HASH: {c.redisHashKey}
+                          </p>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                            Vector query (RediSearch)
+                          </p>
+                          <pre className="mb-2 max-h-32 overflow-auto whitespace-pre-wrap rounded border border-zinc-800/80 bg-black/50 p-2 font-mono text-[10px] leading-snug text-zinc-400">
+                            {c.vectorQueryExecuted}
+                          </pre>
                           <p className="text-zinc-400">{c.content}</p>
                         </li>
                       ))}
@@ -285,9 +357,9 @@ export default function Home() {
             <p className="text-xs text-zinc-500">
               Redis vector index on prior queries. Hit if nearest neighbor cosine distance ≤{" "}
               <code className="text-zinc-400">
-                {lastCache ? lastCache.maxDistance.toFixed(3) : "…"}
-              </code>{" "}
-              (<code className="text-zinc-400">SEMANTIC_CACHE_MAX_DISTANCE</code>).
+                (SEMANTIC_CACHE_MAX_DISTANCE = {cacheMaxDistance.toFixed(3)})
+              </code>
+              .
             </p>
           </div>
           <div className="space-y-4 p-4 text-sm">
@@ -302,6 +374,71 @@ export default function Home() {
                 </p>
                 <p className="text-2xl font-semibold text-emerald-400">{cacheHits}</p>
               </div>
+            </div>
+            <div className="rounded-lg border border-zinc-800 bg-black/40 p-3 text-xs">
+              <p className="mb-2 font-medium text-zinc-400">OpenAI tokens (this session)</p>
+              {tokenTurnRows.length === 0 ? (
+                <p className="text-zinc-600">Send a message to record per-query usage.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-[11px]">
+                    <thead>
+                      <tr className="border-b border-zinc-700 text-[10px] uppercase tracking-wide text-zinc-500">
+                        <th className="py-1.5 pr-2 font-medium">Query</th>
+                        <th className="py-1.5 pr-2 text-right font-medium">Embeddings</th>
+                        <th className="py-1.5 pr-2 text-right font-medium">
+                          Chat completions
+                        </th>
+                        <th className="py-1.5 text-right font-medium text-emerald-500/90">
+                          Chat avoided
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-zinc-400">
+                      {tokenTurnRows.map((row) => (
+                        <tr
+                          key={row.queryLabel}
+                          className="border-b border-zinc-800/80 last:border-0"
+                        >
+                          <td className="py-1.5 pr-2 font-medium text-zinc-300">
+                            {row.queryLabel}
+                          </td>
+                          <td className="py-1.5 pr-2 text-right font-mono text-zinc-300">
+                            {row.embeddingTotalTokens.toLocaleString()}
+                          </td>
+                          <td className="py-1.5 pr-2 text-right font-mono text-zinc-300">
+                            {row.llmTotalTokens.toLocaleString()}
+                          </td>
+                          <td className="py-1.5 text-right font-mono text-emerald-400/90">
+                            {row.chatAvoided.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="mt-2 border-t border-zinc-800 pt-2 text-zinc-400">
+                <span className="text-zinc-500">Billed total ≈ </span>
+                <span className="font-mono text-zinc-200">
+                  {tokenTotals.billed.toLocaleString()}
+                </span>
+                <span className="text-zinc-500"> tokens</span>
+                {tokenTurnRows.length > 0 && (
+                  <span className="mt-1 block text-[10px] text-zinc-600">
+                    Session chat avoided (sum):{" "}
+                    <span className="font-mono text-emerald-500/80">
+                      {tokenTotals.avoided.toLocaleString()}
+                    </span>
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-[10px] leading-snug text-zinc-600">
+                One row per chat turn in order (Query 1 = first question sent). &quot;Chat
+                avoided&quot; is the matched cache entry&apos;s stored chat{" "}
+                <code className="text-zinc-500">total_tokens</code>. Embeddings run every turn.
+                Old cache rows without stored usage show 0 avoided.
+              </p>
             </div>
             {!lastCache && (
               <p className="text-xs text-zinc-500">Run a query to see hit/miss diagnostics.</p>
@@ -336,16 +473,38 @@ export default function Home() {
                     {lastCache.redisKey}
                   </p>
                 )}
+                {lastUsage && (
+                  <p className="mt-3 border-t border-zinc-800/80 pt-2 text-[11px] text-zinc-500">
+                    {lastCache.hit ? (
+                      <>
+                        This turn: embedding{" "}
+                        <span className="font-mono text-zinc-400">
+                          {lastUsage.embeddingTotalTokens.toLocaleString()}
+                        </span>{" "}
+                        tok · chat skipped{" "}
+                        <span className="font-mono text-emerald-400/90">
+                          {(lastUsage.llmTokensSavedVsFreshCall ?? 0).toLocaleString()}
+                        </span>{" "}
+                        tok
+                      </>
+                    ) : (
+                      <>
+                        This turn: embedding{" "}
+                        <span className="font-mono text-zinc-400">
+                          {lastUsage.embeddingTotalTokens.toLocaleString()}
+                        </span>
+                        {" · "}
+                        chat{" "}
+                        <span className="font-mono text-zinc-400">
+                          {(lastUsage.llmTotalTokens ?? 0).toLocaleString()}
+                        </span>{" "}
+                        tok
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
             )}
-            <div className="rounded-lg border border-dashed border-zinc-700 p-3 text-xs text-zinc-500">
-              <p className="font-medium text-zinc-400">Webinar beats</p>
-              <ol className="mt-2 list-decimal space-y-1 pl-4">
-                <li>Seed handbook vectors (one-time per environment).</li>
-                <li>Show inspector changing when the question changes.</li>
-                <li>Rephrase the same intent and watch a cache hit (no retrieval / no LLM).</li>
-              </ol>
-            </div>
           </div>
         </section>
       </div>

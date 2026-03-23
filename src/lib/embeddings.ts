@@ -3,7 +3,15 @@ import OpenAI from "openai";
 const EMBEDDING_MODEL =
   process.env.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-small";
 
-export async function embedText(text: string): Promise<number[]> {
+export type EmbeddingUsage = {
+  promptTokens: number;
+  totalTokens: number;
+};
+
+export async function embedText(text: string): Promise<{
+  embedding: number[];
+  usage: EmbeddingUsage;
+}> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not set");
@@ -17,5 +25,10 @@ export async function embedText(text: string): Promise<number[]> {
   if (!vec) {
     throw new Error("Embedding response was empty");
   }
-  return vec;
+  const pt = res.usage?.prompt_tokens ?? 0;
+  const tt = res.usage?.total_tokens ?? pt;
+  return {
+    embedding: vec,
+    usage: { promptTokens: pt, totalTokens: tt },
+  };
 }

@@ -2,11 +2,17 @@ import OpenAI from "openai";
 
 const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
 
+export type LlmUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+};
+
 export async function generateAnswer(input: {
   userMessage: string;
   systemPreamble: string;
   contextBlock: string;
-}): Promise<string> {
+}): Promise<{ answer: string; usage: LlmUsage }> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not set");
@@ -30,5 +36,11 @@ export async function generateAnswer(input: {
   if (!text) {
     throw new Error("Chat completion was empty");
   }
-  return text;
+  const u = completion.usage;
+  const usage: LlmUsage = {
+    promptTokens: u?.prompt_tokens ?? 0,
+    completionTokens: u?.completion_tokens ?? 0,
+    totalTokens: u?.total_tokens ?? (u?.prompt_tokens ?? 0) + (u?.completion_tokens ?? 0),
+  };
+  return { answer: text, usage };
 }
