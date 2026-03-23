@@ -383,14 +383,18 @@ export default function Home() {
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-left text-[11px]">
                     <thead>
-                      <tr className="border-b border-zinc-700 text-[10px] uppercase tracking-wide text-zinc-500">
-                        <th className="py-1.5 pr-2 font-medium">Query</th>
-                        <th className="py-1.5 pr-2 text-right font-medium">Embeddings</th>
-                        <th className="py-1.5 pr-2 text-right font-medium">
-                          Chat completions
+                      <tr className="border-b border-zinc-700 text-[9px] font-medium leading-tight text-zinc-500">
+                        <th className="min-w-[4.25rem] whitespace-nowrap py-1.5 pr-2 text-left text-[10px] font-medium normal-case">
+                          Query
                         </th>
-                        <th className="py-1.5 text-right font-medium text-emerald-500/90">
-                          Chat avoided
+                        <th className="py-1.5 pr-2 text-right normal-case">
+                          OpenAI question parsing tokens
+                        </th>
+                        <th className="py-1.5 pr-2 text-right normal-case">
+                          Token used by OpenAI for prompt + response
+                        </th>
+                        <th className="py-1.5 text-right font-medium normal-case text-emerald-500/90">
+                          Token skipped by OpenAI for prompt + response
                         </th>
                       </tr>
                     </thead>
@@ -400,7 +404,7 @@ export default function Home() {
                           key={row.queryLabel}
                           className="border-b border-zinc-800/80 last:border-0"
                         >
-                          <td className="py-1.5 pr-2 font-medium text-zinc-300">
+                          <td className="min-w-[4.25rem] whitespace-nowrap py-1.5 pr-2 align-top font-mono text-[10px] font-medium text-zinc-300">
                             {row.queryLabel}
                           </td>
                           <td className="py-1.5 pr-2 text-right font-mono text-zinc-300">
@@ -426,7 +430,7 @@ export default function Home() {
                 <span className="text-zinc-500"> tokens</span>
                 {tokenTurnRows.length > 0 && (
                   <span className="mt-1 block text-[10px] text-zinc-600">
-                    Session chat avoided (sum):{" "}
+                    Session tokens skipped for prompt + response (sum):{" "}
                     <span className="font-mono text-emerald-500/80">
                       {tokenTotals.avoided.toLocaleString()}
                     </span>
@@ -434,11 +438,50 @@ export default function Home() {
                 )}
               </p>
               <p className="mt-1 text-[10px] leading-snug text-zinc-600">
-                One row per chat turn in order (Query 1 = first question sent). &quot;Chat
-                avoided&quot; is the matched cache entry&apos;s stored chat{" "}
-                <code className="text-zinc-500">total_tokens</code>. Embeddings run every turn.
-                Old cache rows without stored usage show 0 avoided.
+                One row per chat turn (Query 1 = first question). Short question → smaller numbers;
+                long question → bigger. Old cache rows without stored usage show 0 in the skipped
+                column.
               </p>
+              <details className="mt-2 rounded-lg border border-zinc-800/80 bg-black/30 p-2 text-[10px] leading-snug text-zinc-500">
+                <summary className="cursor-pointer select-none font-medium text-zinc-400">
+                  What these columns mean
+                </summary>
+                <div className="mt-2 space-y-2 border-t border-zinc-800/80 pt-2">
+                  <div>
+                    <p className="font-medium text-zinc-400">OpenAI question parsing tokens</p>
+                    <p className="mt-0.5">
+                      Tokens for OpenAI to read <span className="text-zinc-400">this</span> question
+                      and turn it into a numeric &quot;meaning&quot; representation so the app can
+                      search the semantic cache and the handbook. This runs{" "}
+                      <span className="text-zinc-400">every</span> time you send a message — even
+                      when the final answer comes from cache and no chat reply is generated.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-zinc-400">
+                      Token used by OpenAI for prompt + response
+                    </p>
+                    <p className="mt-0.5">
+                      Tokens for the actual assistant reply: prompt (instructions + context +
+                      question) plus the model&apos;s answer. Non-zero only when the LLM runs this
+                      turn; <span className="text-zinc-400">0</span> on a semantic cache hit.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-emerald-500/90">
+                      Token skipped by OpenAI for prompt + response
+                    </p>
+                    <p className="mt-0.5">
+                      On a cache hit, no new chat call happens this turn. This number is the{" "}
+                      <span className="text-zinc-400">stored</span> chat{" "}
+                      <code className="text-zinc-500">total_tokens</code> from when that answer was
+                      first created — a rough idea of prompt+reply tokens you didn&apos;t spend
+                      again. <span className="text-zinc-400">0</span> on a miss or if the cache
+                      entry has no stored usage.
+                    </p>
+                  </div>
+                </div>
+              </details>
             </div>
             {!lastCache && (
               <p className="text-xs text-zinc-500">Run a query to see hit/miss diagnostics.</p>

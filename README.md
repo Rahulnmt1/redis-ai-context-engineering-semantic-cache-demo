@@ -136,6 +136,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000), click **Seed Redis**, then start asking questions.
 
+Webinar-style question sequences (including embedding-safe paraphrases): [docs/demo-query-sets.md](docs/demo-query-sets.md).
+
+Plain-language definitions for the **OpenAI tokens** table in the UI: [docs/openai-token-columns.md](docs/openai-token-columns.md). **Short question → smaller numbers; long question → bigger numbers.** Embeddings for **Seed Redis** (handbook) are separate and are not included in that session table.
+
 ### One-liner seed (optional)
 
 ```bash
@@ -182,7 +186,15 @@ company-leaves/
       redis-search.ts     # FT.CREATE / FT.SEARCH KNN helpers
   docs/
     context-engineering-venn.svg
+    demo-query-sets.md        # Webinar scripts + embedding-safe cache hits
+    openai-token-columns.md   # Token table columns (plain language)
 ```
+
+---
+
+## Demo query scripts
+
+Step-by-step chat sequences (tested with this app) for local practice are in **[docs/demo-query-sets.md](docs/demo-query-sets.md)**.
 
 ---
 
