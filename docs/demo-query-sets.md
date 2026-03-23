@@ -1,4 +1,4 @@
-# Demo query sets (webinar)
+# Demo query sets
 
 These sequences were **tested end-to-end** with this repo. Use **Reset + seed** before each clean run so the semantic cache starts empty.
 

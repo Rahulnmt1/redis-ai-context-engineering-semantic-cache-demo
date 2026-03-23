@@ -5,7 +5,7 @@ export type HandbookChunk = {
 };
 
 /**
- * Fictional handbook snippets for demo / webinar use only.
+ * Fictional handbook snippets for demonstration and learning purposes only.
  */
 export const HANDBOOK_CHUNKS: HandbookChunk[] = [
   {
