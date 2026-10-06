@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/shri-radha.png" alt="श्री राधा" width="200">
+</p>
+
 # Company Leaves: Context Engineering and Semantic Caching (Redis 8 and Next.js)
 
 This repository is a **small, runnable application** that shows how **retrieval augmented generation** and a **semantic cache** can work together on top of **Redis 8** (official Docker image), **RediSearch** vector indexes, **Next.js**, and **OpenAI** APIs. The UI has three parts: **chat**, a **context inspector** that shows the text bundle sent to the model on each turn, and a **semantic cache** panel that reports hits and misses plus simple counters.
